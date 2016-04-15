@@ -1,5 +1,6 @@
 module WinReg
-    
+
+export querykey
 
 const HKEY_CLASSES_ROOT     = 0x80000000
 const HKEY_CURRENT_USER     = 0x80000001
@@ -68,7 +69,7 @@ function querykey(base::UInt32, path::AbstractString, name::AbstractString)
 end
 
 function closekey(key::UInt32)
-    ret = ccall((:RegQueryValueExW, "advapi32"),
+    ret = ccall((:RegCloseKey, "advapi32"),
                 stdcall, Clong,
                 (UInt32,),
                 key)
