@@ -1,14 +1,4 @@
 module WinReg
-
-
-type RegKey
-    phk::UInt32
-end
-RegKey() = RegKey(0)
-
-
-import Base: cconvert
-cconvert(::Type{UInt32}, k::RegKey) = k.phk
     
 
 const HKEY_CLASSES_ROOT     = 0x80000000
@@ -26,19 +16,19 @@ const REG_DWORD               = 4 # DWORD in little endian format
 const QUERY_VALUE         = 0x00001
 
 
-function openkey(base::Union{UInt32,RegKey}, path::AbstractString)
-    key = RegKey()
+function openkey(base::UInt32, path::AbstractString)
+    keyref = Ref{UInt32}()
     ret = ccall((:RegOpenKeyExW, "advapi32"), 
                 Clong, 
-                (UInt32, Cwstring, UInt32, UInt32, RegKey),
-                base, path, 0, QUERY_VALUE, key)
+                (UInt32, Cwstring, UInt32, UInt32, Ref{Uint32}),
+                base, path, 0, QUERY_VALUE, keyref)
     if ret != 0
         error("Could not find registry key")
     end
-    key
+    keyref[]
 end
 
-function querykey(key::Union{UInt32,RegKey}, name::AbstractString)
+function querykey(key::UInt32, name::AbstractString)
     dwSize = Ref{UInt32}()
     dwDataType = Ref{UInt32}()
     
@@ -70,14 +60,14 @@ function querykey(key::Union{UInt32,RegKey}, name::AbstractString)
     end        
 end
 
-function querykey(base::Union{UInt32,RegKey}, path::AbstractString, name::AbstractString)
+function querykey(base::UInt32, path::AbstractString, name::AbstractString)
     key = openkey(base,path)
     val = querykey(key, name)
     closekey(key)
     val
 end
 
-function closekey(key::RegKey)
+function closekey(key::UInt32)
     ret = ccall((:RegQueryValueExW, "advapi32"),
                 Clong,
                 (UInt32,),
