@@ -19,8 +19,8 @@ const QUERY_VALUE         = 0x00001
 function openkey(base::UInt32, path::AbstractString)
     keyref = Ref{UInt32}()
     ret = ccall((:RegOpenKeyExW, "advapi32"), 
-                Clong, 
-                (UInt32, Cwstring, UInt32, UInt32, Ref{Uint32}),
+                stdcall, Clong, 
+                (UInt32, Cwstring, UInt32, UInt32, Ref{UInt32}),
                 base, path, 0, QUERY_VALUE, keyref)
     if ret != 0
         error("Could not find registry key")
@@ -33,7 +33,7 @@ function querykey(key::UInt32, name::AbstractString)
     dwDataType = Ref{UInt32}()
     
     ret = ccall((:RegQueryValueExW, "advapi32"),
-                Clong,
+                stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
                  Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),
                 key, name, C_NULL,
@@ -45,16 +45,16 @@ function querykey(key::UInt32, name::AbstractString)
     if dwDataType[] == REG_SZ
         wstr_data = Array(UInt8, dwSize[])
         ret = ccall((:RegQueryValueExW, "advapi32"), 
-                    Clong, 
+                    stdcall, Clong, 
                     (UInt32, Cwstring, Ptr{UInt32},
-                     Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),                
+                     Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),                
                     key, name, C_NULL,
                     C_NULL, wstr_data, dwSize)
         if ret != 0
             error("Could not retrieve registry data")
         end
         
-        return wstring(wstr_data)
+        return bytestring(wstring(wstr_data[1:end-sizeof(Cwchar_t)]))
     else
         error("Unknown data type")
     end        
@@ -69,7 +69,7 @@ end
 
 function closekey(key::UInt32)
     ret = ccall((:RegQueryValueExW, "advapi32"),
-                Clong,
+                stdcall, Clong,
                 (UInt32,),
                 key)
     if ret != 0
