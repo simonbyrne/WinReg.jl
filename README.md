@@ -9,7 +9,7 @@ Julia interface to the Windows registry.
 At the moment, this just exports one function, `querykey`, which queries the Windows registry.
 
 ```julia
-querykey(base, path, name)
+querykey(base, path, valuename)
 ```
 where
 * `base` is one of the base paths:
