@@ -1,5 +1,7 @@
 module WinReg
 
+using Compat
+
 export querykey
 
 const HKEY_CLASSES_ROOT     = 0x80000000
