@@ -7,7 +7,6 @@ if VERSION < v"0.4.0-"
         x::T
         Ref() = new()
     end
-
     Base.getindex(r::Ref) = r.x
 end
 
@@ -62,7 +61,7 @@ function openkey(base::UInt32, path::AbstractString, accessmask::UInt32=KEY_READ
     ret = ccall((:RegOpenKeyExW, "advapi32"), 
                 stdcall, Clong, 
                 (UInt32, Cwstring, UInt32, UInt32, Ref{UInt32}),
-                base, path, 0, accessmask, keyref)
+                base, wstring(path), 0, accessmask, keyref)
     if ret != 0
         error("Could not open registry key")
     end
@@ -77,7 +76,7 @@ function querykey(key::UInt32, valuename::AbstractString)
                 stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
                  Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),
-                key, valuename, C_NULL,
+                key, wstring(valuename), C_NULL,
                 dwDataType, C_NULL, dwSize)    
     if ret != 0
         error("Could not find registry value name")
@@ -88,7 +87,7 @@ function querykey(key::UInt32, valuename::AbstractString)
                 stdcall, Clong, 
                 (UInt32, Cwstring, Ptr{UInt32},
                  Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),                
-                key, valuename, C_NULL,
+                key, wstring(valuename), C_NULL,
                 C_NULL, data, dwSize)
     if ret != 0
         error("Could not retrieve registry data")
