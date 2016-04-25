@@ -5,7 +5,7 @@ using Compat
 if VERSION < v"0.4.0-"
     type Ref{T}
         x::T
-        Ref{T}() = new()
+        Ref() = new()
     end
 
     Base.getindex(r::Ref) = r.x
