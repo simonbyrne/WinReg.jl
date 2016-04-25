@@ -2,6 +2,15 @@ module WinReg
 
 using Compat
 
+if VERSION < v"0.4.0-"
+    type Ref{T}
+        x::T
+        Ref{T}() = new()
+    end
+
+    Base.getindex(r::Ref) = r.x
+end
+
 export querykey
 
 const HKEY_CLASSES_ROOT     = 0x80000000
