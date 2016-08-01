@@ -1,4 +1,7 @@
+__precompile__(true)
 module WinReg
+
+import Compat: @compat
 
 export querykey
 
