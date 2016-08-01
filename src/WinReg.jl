@@ -48,8 +48,8 @@ const KEY_WRITE               = 0x20006  # Combines the STANDARD_RIGHTS_WRITE, K
 
 function openkey(base::UInt32, path::AbstractString, accessmask::UInt32=KEY_READ)
     keyref = Ref{UInt32}()
-    ret = ccall((:RegOpenKeyExW, "advapi32"), 
-                stdcall, Clong, 
+    ret = ccall((:RegOpenKeyExW, "advapi32"),
+                stdcall, Clong,
                 (UInt32, Cwstring, UInt32, UInt32, Ref{UInt32}),
                 base, path, 0, accessmask, keyref)
     if ret != 0
@@ -61,33 +61,33 @@ end
 function querykey(key::UInt32, valuename::AbstractString)
     dwSize = Ref{UInt32}()
     dwDataType = Ref{UInt32}()
-    
+
     ret = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
                  Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),
                 key, valuename, C_NULL,
-                dwDataType, C_NULL, dwSize)    
+                dwDataType, C_NULL, dwSize)
     if ret != 0
         error("Could not find registry value name")
     end
 
     data = Array(UInt8, dwSize[])
-    ret = ccall((:RegQueryValueExW, "advapi32"), 
-                stdcall, Clong, 
+    ret = ccall((:RegQueryValueExW, "advapi32"),
+                stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
-                 Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),                
+                 Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),
                 key, valuename, C_NULL,
                 C_NULL, data, dwSize)
     if ret != 0
         error("Could not retrieve registry data")
     end
-    
+
     if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
 
         # string may or may not be null-terminated
-        if data_wstr[end] == 0        
+        if data_wstr[end] == 0
             return bytestring(wstring(data_wstr[1:end-1]))
         else
             return bytestring(wstring(data_wstr))
@@ -98,7 +98,7 @@ function querykey(key::UInt32, valuename::AbstractString)
         return reinterpret(Int64,data)[]
     else
         return data
-    end        
+    end
 end
 
 function querykey(base::UInt32, path::AbstractString, valuename::AbstractString)
