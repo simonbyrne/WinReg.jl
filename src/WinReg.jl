@@ -1,7 +1,7 @@
 __precompile__(true)
 module WinReg
 
-import Compat: @compat
+import Compat: @static
 
 export querykey
 
@@ -93,10 +93,10 @@ function querykey(key::UInt32, valuename::AbstractString)
         if data_wstr[end] == 0
             data_wstr = data_wstr[1:end-1]
         end
-        if VERSION < v"0.5.0-"
+        @static if VERSION < v"0.5.0-"
             return bytestring(wstring(data_wstr))
         else
-            return @compat String(transcode(UInt8,data_wstr))
+            return String(transcode(UInt8,data_wstr))
         end        
     elseif dwDataType[] == REG_DWORD
         return reinterpret(Int32,data)[]
