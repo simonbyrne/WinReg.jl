@@ -93,7 +93,7 @@ function querykey(key::UInt32, valuename::AbstractString)
         if VERSION < v"0.5.0-"
             return bytestring(wstring(data_wstr))
         else
-            return String(transcode(UInt8,data_wstr))
+            return @compat String(transcode(UInt8,data_wstr))
         end        
     elseif dwDataType[] == REG_DWORD
         return reinterpret(Int32,data)[]
