@@ -91,13 +91,14 @@ function querykey(key::UInt32, valuename::AbstractString)
 
         # string may or may not be null-terminated
         if data_wstr[end] == 0
-            data_wstr = data_wstr[1:end-1]
+            pop!(data_wstr)
         end
-        @static if VERSION < v"0.5.0-"
-            return bytestring(wstring(data_wstr))
-        else
+
+        @static if isdefined(Base,:transcode)
             return String(transcode(UInt8,data_wstr))
-        end        
+        else
+            return bytestring(wstring(data_wstr))
+        end
     elseif dwDataType[] == REG_DWORD
         return reinterpret(Int32,data)[]
     elseif dwDataType[] == REG_QWORD
