@@ -32,4 +32,27 @@ using WinReg
 querykey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Control\\Session Manager\\Environment","PROCESSOR_ARCHITECTURE")
 ```
 
+## Suggested use as a dependency
+
+If the functions are to be called from a package is to be used on multiple operating systems, I suggest the following approach so that it only needs to be installed when necessary.
+
+Add the following lines to the REQUIRE file:
+```
+@windows WinReg 0.2
+Compat 0.8.6
+```
+
+In the package code:
+```julia
+import Compat: @static, is_windows
+
+@static if is_windows()
+    using WinReg # or import WinReg
+
+    # code goes here
+end
+```
+
+## Requests
+
 If further functionality is required, please open an issue.
