@@ -34,15 +34,15 @@ querykey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Control\\Session 
 
 ### Suggested use as a package dependency
 
-If the functions are to be called from a package is to be used on multiple operating systems, I suggest the following approach so that it only needs to be installed when necessary.
+If WinReg is to be used as part of another package which supports multiple operating systems, I suggest the following approach:
 
-Add the following lines to the REQUIRE file:
+#### 1. Add the following lines to the REQUIRE file:
 ```
 @windows WinReg 0.2
 Compat 0.8.6 # necessary for Julia v0.4 support
 ```
 
-In the package code:
+#### 2. In the package code:
 ```julia
 import Compat: @static, is_windows # necessary for Julia v0.4 support
 
