@@ -57,7 +57,7 @@ function regread(key::AbstractString, valuename::AbstractString)
 	if typ[] == REG_TYPE.REG_SZ || typ[] == REG_TYPE.REG_EXPAND_SZ || typ[] == REG_TYPE.REG_LINK
 		local wbuf = reinterpret(Cwchar_t, buf)
 		l = len[]
-		if buf[l] == 0 and buf[l-1] == 0
+		if buf[l] == 0 && buf[l-1] == 0
 			return transcode(String, wbuf[1:div(l-2,2)])
 		else
 			return transcode(String, wbuf[1:div(l,2)])
@@ -65,7 +65,7 @@ function regread(key::AbstractString, valuename::AbstractString)
 	elseif typ[] == REG_TYPE.REG_MULTI_SZ
 		wbuf = reinterpret(Cwchar_t, buf)
 		l = len[]
-		if buf[l] == 0 and buf[l-1] == 0
+		if buf[l] == 0 && buf[l-1] == 0
 			s = transcode(String, wbuf[1:div(l-2,2)])
 		else
 			s = transcode(String, wbuf[1:div(l,2)])
