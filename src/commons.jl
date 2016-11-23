@@ -2,12 +2,6 @@
 #-----------------------------------------------------------
 # Define types and base functions to access windows registry
 # -- part of WinReg Module --
-#
-#File: commons.jl
-#Author: Leonardo Cocco
-#Creation Date: 11-04-2016
-#Last update 21-11-2016
-#ver: 0.12
 #----------------------------------------------------------
 #----------------------------------------------------------
 
@@ -80,11 +74,11 @@ const REG_CREATED_NEW_KEY = 0x00000001
 const REG_OPENED_EXISTING_KEY = 0x00000002
 
 function getroothkey(key::AbstractString)
-	local pos = search(key, '\\')
+	pos = search(key, '\\')
 	if pos == 0
 		return convert(HKEY, 0)
 	else
-		root_key = uppercase(key[1:(pos-1)])
+		root_key = uppercase(prevind(key,pos))
 	end
 	
 	if root_key == "HKEY_CLASSES_ROOT" || root_key == "HKCR"
@@ -113,11 +107,11 @@ function getroothkey(key::AbstractString)
 end
 
 function getsubkey(key::AbstractString)
-	local pos = search(key,'\\')
+	pos = search(key,'\\')
 	if pos == 0
 		return ""
 	else
-		return key[(pos+1):end]
+		return nextind(key,pos)
 	end
 end
 
@@ -138,18 +132,18 @@ function gettype(typ::UInt32)
 end
 
 function regopenkeyex(root::HKEY, subkey::AbstractString, sam::REGSAM)
-	local hk = Ref{HKEY}(0)
+	hk = Ref{HKEY}(0)
 	
 	#UNICODE version; xxxExA is ASCII version, but LPCTRSTR = LPCSTR
 	res = ccall((:RegOpenKeyExW, advapi), stdcall,
 	  LONG,
-	  (HKEY, LPCWSTR, DWORD, REGSAM, PHKEY),
-	  root, transcode(Cwchar_t, subkey), 0, sam, hk )
+	  (HKEY, Cwstring, DWORD, REGSAM, PHKEY),
+	  root, subkey, 0, sam, hk )
 	
 	if res == ERROR_SUCCESS
 		return hk[]
 	else
-		return 0
+		error("error opening specified key")
 	end
 end
 
@@ -176,17 +170,18 @@ function regclosekey(key::HKEY)
 end
 
 function any2bytes(x)
-	local sz = sizeof(x)
-	local ba = Vector{UInt8}(sz)
-	local src_ptr = convert(Ptr{UInt8}, pointer_from_objref(x))
+	sz = sizeof(x)
+	ba = Vector{UInt8}(sz)
+	src_ptr = convert(Ptr{UInt8}, pointer_from_objref(x))
 	unsafe_copy!(pointer(ba), src_ptr, sz)
 	
 	return ba
 end
 
 #return byte-array with NULL-termination
+#=
 function string2wchar(str::AbstractString)
-	local buf = Vector{UInt8}(length(str)*2+2)
+	buf = Vector{UInt8}(length(str)*2+2)
 	for idx = 1:length(str)
 		charbytes = any2bytes(convert(UInt16, str[idx]))
 		buf[idx*2-1] = charbytes[1]
@@ -197,3 +192,5 @@ function string2wchar(str::AbstractString)
 	
 	return buf
 end
+=#
+string2wchar(str) = reinterpret(UInt8, Base.cconvert(Cwstring, str))
