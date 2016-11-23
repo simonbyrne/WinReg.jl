@@ -78,7 +78,7 @@ function getroothkey(key::AbstractString)
 	if pos == 0
 		return convert(HKEY, 0)
 	else
-		root_key = uppercase(prevind(key,pos))
+		root_key = uppercase(key[1:prevind(key,pos)])
 	end
 	
 	if root_key == "HKEY_CLASSES_ROOT" || root_key == "HKCR"
@@ -111,7 +111,7 @@ function getsubkey(key::AbstractString)
 	if pos == 0
 		return ""
 	else
-		return nextind(key,pos)
+		return key[nextind(key,pos):end]
 	end
 end
 
