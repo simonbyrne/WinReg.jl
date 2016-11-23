@@ -151,7 +151,7 @@ function preparedata(value::AbstractString)
 	data = string2wchar(value)
 	
 	return typ, data
-nd
+end
 
 function preparedata(value::Vector{String})
 	typ = REG_TYPE.REG_MULTI_SZ
