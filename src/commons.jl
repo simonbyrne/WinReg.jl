@@ -143,7 +143,7 @@ function regopenkeyex(root::HKEY, subkey::AbstractString, sam::REGSAM)
 	if res == ERROR_SUCCESS
 		return hk[]
 	else
-		error("error opening specified key")
+		return 0
 	end
 end
 

@@ -11,7 +11,7 @@ const HKEY_DYN_DATA = 0x80000006
 
 
 function querykey(base::UInt32, path::AbstractString, valuename::AbstractString)
-	local b = ""
+	b = ""
     if base == HKEY_CLASSES_ROOT
 		b = "HKEY_CLASSES_ROOT"
 	elseif base == HKEY_CURRENT_CONFIG
@@ -32,7 +32,7 @@ function querykey(base::UInt32, path::AbstractString, valuename::AbstractString)
 		b = "HKEY_DYN_DATA"
 	end
 	
-	local key = b * "\\" * path
+	key = b * "\\" * path
 	
 	return regread(key, valuename)
 end
