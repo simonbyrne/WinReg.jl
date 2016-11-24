@@ -59,8 +59,7 @@ res = regread(parentkey * "\\" * subkey1, "")
 @test res == defaValue
 
 info("regread - test #3.3: read not-existent value")
-res = regread(parentkey, "noval")
-@test res == nothing
+@test_throws ErrorException regread(parentkey, "noval")
 
 info("regkeylist - test #4.1: list existent subkeys of existent key")
 res = regkeylist(parentkey)
