@@ -7,12 +7,9 @@
 __precompile__(true)
 module WinReg
 
-#Julia 0.4.x compatibility
-if VERSION < v"0.5.0"
-	include_string("is_windows() = (@windows ? true : false)")
-end
+using Compat
 
-if is_windows()
+if @compat is_windows()
 	include("wintypes.jl")
 	include("commons.jl")
 	
