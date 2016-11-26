@@ -292,7 +292,7 @@ end
 """
    regkeylist(key::AbstractString)
 
-Return all sukbeys of specified `key` as string array. 
+Return all subkeys of specified `key` as string array. 
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  
 If operation fails is returned `nothing` (type is `Void`)"""
 function regkeylist(key::AbstractString)
@@ -322,19 +322,19 @@ function regkeylist(key::AbstractString)
 			keys = Vector{AbstractString}(numSubKeys[])
 			buf = Vector{UInt8}((maxLongSubKey[] + 1) * 2) #2-byte Unicode characters + 0-termination
 			idx::DWORD = 0
-			for idx = 0:(numSubKeys[] - 1)
+			for idx = 1:numSubKeys[]
 				len = Ref{DWORD}(length(buf))
 				ccall((:RegEnumKeyExW, advapi), stdcall,
 				  LONG,
 				  (HKEY, DWORD, LPCWSTR, LPDWORD, LPDWORD, LPCWSTR, LPDWORD, PFILETIME ),
-				  hk, idx, pointer(buf), len, C_NULL, C_NULL, C_NULL, C_NULL )
+				  hk, idx-1, pointer(buf), len, C_NULL, C_NULL, C_NULL, C_NULL )
 				if res != ERROR_SUCCESS
 					regclosekey(hk)
 					return nothing
 				end
 				
 				wbuf = reinterpret(Cwchar_t, buf)
-				keys[idx+1] = transcode(String, wbuf[1:len[]])
+				keys[idx] = transcode(String, wbuf[1:len[]])
 			end
 		end
 	end
