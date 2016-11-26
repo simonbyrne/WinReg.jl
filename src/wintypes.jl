@@ -6,6 +6,7 @@
 #----------------------------------------------------------
 
 
+# general Win32 types
 typealias POINTER UInt
 typealias LPVOID Ptr{UInt8}
 typealias WINBOOL UInt

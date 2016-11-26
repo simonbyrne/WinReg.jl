@@ -6,9 +6,10 @@
 #----------------------------------------------------------
 
 
+# specific-registry types
 typealias HKEY UInt32 #DWORD also on 64-bit platforms
-typealias PHKEY Ptr{HKEY}
 typealias REGSAM UInt32 #-> ACCESS_MASK -> DWORD
+typealias PHKEY Ptr{HKEY}
 
 const advapi = "advapi32.dll"
 
@@ -169,6 +170,7 @@ function regclosekey(key::HKEY)
 	return ret
 end
 
+#=
 function any2bytes(x)
 	sz = sizeof(x)
 	ba = Vector{UInt8}(sz)
@@ -179,7 +181,6 @@ function any2bytes(x)
 end
 
 #return byte-array with NULL-termination
-#=
 function string2wchar(str::AbstractString)
 	buf = Vector{UInt8}(length(str)*2+2)
 	for idx = 1:length(str)
