@@ -170,28 +170,4 @@ function regclosekey(key::HKEY)
 	return ret
 end
 
-#=
-function any2bytes(x)
-	sz = sizeof(x)
-	ba = Vector{UInt8}(sz)
-	src_ptr = convert(Ptr{UInt8}, pointer_from_objref(x))
-	unsafe_copy!(pointer(ba), src_ptr, sz)
-	
-	return ba
-end
-
-#return byte-array with NULL-termination
-function string2wchar(str::AbstractString)
-	buf = Vector{UInt8}(length(str)*2+2)
-	for idx = 1:length(str)
-		charbytes = any2bytes(convert(UInt16, str[idx]))
-		buf[idx*2-1] = charbytes[1]
-		buf[idx*2] = charbytes[2]
-	end
-	buf[end-1] = 0
-	buf[end] = 0
-	
-	return buf
-end
-=#
 string2wchar(str) = reinterpret(UInt8, Base.cconvert(Cwstring, str))
