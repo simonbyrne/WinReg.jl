@@ -7,7 +7,7 @@
 
 
 """
-   regread(key::AbstractString, valuename::AbstractString)
+    regread(key::AbstractString, valuename::AbstractString)
 
 Read a value with `valuename` into `key`. 
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').
@@ -88,7 +88,7 @@ function regread(key::AbstractString, valuename::AbstractString)
 end
 
 """
-   regdelete(key::AbstractString, view64::Bool = false)
+    regdelete(key::AbstractString, view64::Bool = false)
 
 Delete specified `key`. 
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  
@@ -120,7 +120,7 @@ function regdelete(key::AbstractString, view64::Bool = false)
 end
 
 """
-   regdelete(key::AbstractString, valuename::AbstractString)
+    regdelete(key::AbstractString, valuename::AbstractString)
 
 Delete specified `valuename` under specified `key`.  
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  
@@ -207,7 +207,7 @@ function preparedata(value::Vector{UInt8})
 end
 
 """
-   regwrite(key::AbstractString, valuename::AbstractString, value::Any)
+    regwrite(key::AbstractString, valuename::AbstractString, value::Any)
 
 Write `value` to `valuename` under specified `key`.  
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  
@@ -233,7 +233,7 @@ function regwrite(key::AbstractString, valuename::AbstractString, value::Any)
 end
 
 """
-   regcreatekey(key::AbstractString)
+    regcreatekey(key::AbstractString)
 
 Recursively create specified key. 
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  
@@ -290,7 +290,7 @@ function regcreatekey(key::AbstractString)
 end
 
 """
-   regkeylist(key::AbstractString)
+    regkeylist(key::AbstractString)
 
 Return all subkeys of specified `key` as string array. 
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  
@@ -345,7 +345,7 @@ function regkeylist(key::AbstractString)
 end
 
 """
-   regvaluelist(key::AbstractString)
+    regvaluelist(key::AbstractString)
 
 Return all value names of specified `key` as tuple array (name, Julia-type).  
 `key` can be specified using abbreviated form (e.g. 'HKEY_LOCAL_MACHINE' -> 'HKLM').  

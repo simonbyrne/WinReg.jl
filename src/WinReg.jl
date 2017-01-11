@@ -7,9 +7,8 @@
 __precompile__(true)
 module WinReg
 
-using Compat
 
-if @compat is_windows()
+if is_windows()
 	include("wintypes.jl")
 	include("commons.jl")
 	
