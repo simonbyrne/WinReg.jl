@@ -1,8 +1,6 @@
 __precompile__(true)
 module WinReg
 
-import Compat: @static
-
 export querykey
 
 const HKEY_CLASSES_ROOT     = 0x80000000
@@ -75,7 +73,7 @@ function querykey(key::UInt32, valuename::AbstractString)
         error("Could not find registry value name")
     end
 
-    data = Array(UInt8, dwSize[])
+    data = Array{UInt8}(dwSize[])
     ret = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
@@ -94,11 +92,7 @@ function querykey(key::UInt32, valuename::AbstractString)
             pop!(data_wstr)
         end
 
-        @static if isdefined(Base,:transcode)
-            return String(transcode(UInt8,data_wstr))
-        else
-            return bytestring(wstring(data_wstr))
-        end
+        return String(transcode(UInt8,data_wstr))
     elseif dwDataType[] == REG_DWORD
         return reinterpret(Int32,data)[]
     elseif dwDataType[] == REG_QWORD
