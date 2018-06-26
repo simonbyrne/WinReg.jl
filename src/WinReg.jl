@@ -86,13 +86,12 @@ function querykey(key::UInt32, valuename::AbstractString)
 
     if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
-
+        data_str  = transcode(UInt8,data_wstr)
         # string may or may not be null-terminated
-        if data_wstr[end] == 0
-            pop!(data_wstr)
+        if data_str[end] == 0
+            pop!(data_str)
         end
-
-        return String(transcode(UInt8,data_wstr))
+        return String(data_str)        
     elseif dwDataType[] == REG_DWORD
         return reinterpret(Int32,data)[]
     elseif dwDataType[] == REG_QWORD
