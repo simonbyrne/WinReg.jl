@@ -73,7 +73,11 @@ function querykey(key::UInt32, valuename::AbstractString)
         error("Could not find registry value name")
     end
 
-    data = Array{UInt8}(dwSize[])
+    if VERSION < v"0.7.0-"
+        data = Array{UInt8}(dwSize[])
+    else
+        data = Array{UInt8}(undef,dwSize[])
+    end
     ret = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
@@ -86,12 +90,14 @@ function querykey(key::UInt32, valuename::AbstractString)
 
     if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
-        data_str  = transcode(UInt8,data_wstr)
         # string may or may not be null-terminated
-        if data_str[end] == 0
-            pop!(data_str)
-        end
-        return String(data_str)        
+        # need to copy, until https://github.com/JuliaLang/julia/pull/27810 is fixed
+        if data_wstr[end] == 0
+            data_wstr2 = data_wstr[1:end-1]
+        else
+            data_wstr2 = data_wstr[1:end]
+        end        
+        return transcode(String, data_wstr2)
     elseif dwDataType[] == REG_DWORD
         return reinterpret(Int32,data)[]
     elseif dwDataType[] == REG_QWORD
