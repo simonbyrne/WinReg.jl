@@ -32,18 +32,12 @@ using WinReg
 querykey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Control\\Session Manager\\Environment","PROCESSOR_ARCHITECTURE")
 ```
 
-### Suggested use as a package dependency
+### Usage within a package
 
-If WinReg is to be used as part of another package which supports multiple operating systems, I suggest the following approach:
+WinReg.jl should only be loaded on Windows OSes (though it is safe to install on other OSes). Suggested usage:
 
-#### 1. Add the following line to the REQUIRE file:
-```
-@windows WinReg 0.3
-```
-
-#### 2. In the package code:
 ```julia
-@static if is_windows()
+@static if VERSION < v"0.7.0-DEV.914" ? is_windows() : Sys.iswindows()
     using WinReg # or import WinReg
 
     # code calling WinReg functionality goes here
