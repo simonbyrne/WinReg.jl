@@ -1,6 +1,6 @@
 # WinReg.jl
 
-[![Build status](https://ci.appveyor.com/api/projects/status/4v53ctinmukaljbe?svg=true)](https://ci.appveyor.com/project/simonbyrne/winreg-jl)
+[![CI](https://github.com/simonbyrne/WinReg.jl/actions/workflows/test.yml/badge.svg)](https://github.com/simonbyrne/WinReg.jl/actions/workflows/test.yml)
 
 Julia interface to the Windows registry.
 
