@@ -1,16 +1,31 @@
 module WinReg
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winreg/
+
+
 export querykey
+
+const LSTATUS = Clong
+const HKEY = UInt32
+const PHKEY = Ptr{HKEY}
+const BYTE = UInt8
+const DWORD = UInt32
+const QWORD = UInt64
+const REGSAM = DWORD
+const LPBYTE = Ptr{BYTE}
+const LPDWORD = Ptr{DWORD}
+const LPCWSTR = Cwstring
 
 
 mutable struct RegKey <: AbstractDict{String,Any}
-    handle::UInt32
+    handle::HKEY
 end
 RegKey() = RegKey(zero(UInt32))
 
-Base.cconvert(::Type{UInt32}, key::RegKey) = key
-Base.unsafe_convert(::Type{UInt32}, key::RegKey) = key.handle
-Base.unsafe_convert(::Type{Ptr{UInt32}}, key::RegKey) = convert(Ptr{UInt32}, pointer_from_objref(key))
+Base.cconvert(::Type{HKEY}, key::RegKey) = key
+Base.unsafe_convert(::Type{HKEY}, key::RegKey) = key.handle
+Base.unsafe_convert(::Type{PHKEY}, key::RegKey) = convert(Ptr{HKEY}, pointer_from_objref(key))
 
 
 
@@ -60,9 +75,10 @@ const KEY_WOW64_64KEY         = 0x00100  # Indicates that an application on 64-b
 const KEY_WRITE               = 0x20006  # Combines the STANDARD_RIGHTS_WRITE, KEY_SET_VALUE, and KEY_CREATE_SUB_KEY access rights.
 
 function Base.close(key::RegKey)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regclosekey
     ret = ccall((:RegCloseKey, "advapi32"),
-                stdcall, Clong,
-                (UInt32,),
+                stdcall, LSTATUS,
+                (HKEY,),
                 key)
     ret != 0 && error("Could not close key")
     return nothing
@@ -70,10 +86,11 @@ end
 
 
 function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
     key = RegKey()
     ret = ccall((:RegOpenKeyExW, "advapi32"),
-                stdcall, Clong,
-                (UInt32, Cwstring, UInt32, UInt32, Ptr{UInt32}),
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, DWORD, REGSAM, PHKEY),
                 base, path, 0, accessmask, key)
     ret != 0 && error("Could not open registry key")
     finalizer(close, key)
@@ -81,25 +98,22 @@ function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ
 end
 
 function Base.getindex(key::RegKey, valuename::AbstractString)
-    dwSize = Ref{UInt32}()
-    dwDataType = Ref{UInt32}()
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw
+    dwSize = Ref{DWORD}()
+    dwDataType = Ref{DWORD}()
 
     ret = ccall((:RegQueryValueExW, "advapi32"),
-                stdcall, Clong,
-                (UInt32, Cwstring, Ptr{UInt32},
-                 Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),
-                key, valuename, C_NULL,
-                dwDataType, C_NULL, dwSize)
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, valuename, C_NULL, dwDataType, C_NULL, dwSize)
     ret == 2 && throw(KeyError(valuename))
     ret != 0 && error("Could not find registry value name")
 
     data = Array{UInt8}(undef,dwSize[])
     ret = ccall((:RegQueryValueExW, "advapi32"),
-                stdcall, Clong,
-                (UInt32, Cwstring, Ptr{UInt32},
-                 Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),
-                key, valuename, C_NULL,
-                C_NULL, data, dwSize)
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, valuename, C_NULL, C_NULL, data, dwSize)
     ret== 0 || error("Could not retrieve registry data")
 
     if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
@@ -113,9 +127,9 @@ function Base.getindex(key::RegKey, valuename::AbstractString)
         end        
         return transcode(String, data_wstr2)
     elseif dwDataType[] == REG_DWORD
-        return reinterpret(Int32,data)[]
+        return reinterpret(DWORD, data)[]
     elseif dwDataType[] == REG_QWORD
-        return reinterpret(Int64,data)[]
+        return reinterpret(QWORD, data)[]
     else
         return data
     end
