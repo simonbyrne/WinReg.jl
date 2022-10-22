@@ -1,15 +1,27 @@
-__precompile__(true)
 module WinReg
 
 export querykey
 
-const HKEY_CLASSES_ROOT     = 0x80000000
-const HKEY_CURRENT_USER     = 0x80000001
-const HKEY_LOCAL_MACHINE    = 0x80000002
-const HKEY_USERS            = 0x80000003
-const HKEY_PERFORMANCE_DATA = 0x80000004
-const HKEY_CURRENT_CONFIG   = 0x80000005
-const HKEY_DYN_DATA         = 0x80000006
+
+mutable struct RegKey <: AbstractDict{String,Any}
+    handle::UInt32
+end
+RegKey() = RegKey(zero(UInt32))
+
+Base.cconvert(::Type{UInt32}, key::RegKey) = key
+Base.unsafe_convert(::Type{UInt32}, key::RegKey) = key.handle
+Base.unsafe_convert(::Type{Ptr{UInt32}}, key::RegKey) = convert(Ptr{UInt32}, pointer_from_objref(key))
+
+
+
+const HKEY_CLASSES_ROOT     = RegKey(0x8000_0000)
+const HKEY_CURRENT_USER     = RegKey(0x8000_0001)
+const HKEY_LOCAL_MACHINE    = RegKey(0x8000_0002)
+const HKEY_USERS            = RegKey(0x8000_0003)
+const HKEY_PERFORMANCE_DATA = RegKey(0x8000_0004)
+const HKEY_CURRENT_CONFIG   = RegKey(0x8000_0005)
+const HKEY_DYN_DATA         = RegKey(0x8000_0006)
+
 
 
 const REG_NONE                    = 0 # no value type
@@ -47,19 +59,28 @@ const KEY_WOW64_64KEY         = 0x00100  # Indicates that an application on 64-b
 
 const KEY_WRITE               = 0x20006  # Combines the STANDARD_RIGHTS_WRITE, KEY_SET_VALUE, and KEY_CREATE_SUB_KEY access rights.
 
-function openkey(base::UInt32, path::AbstractString, accessmask::UInt32=KEY_READ)
-    keyref = Ref{UInt32}()
-    ret = ccall((:RegOpenKeyExW, "advapi32"),
+function Base.close(key::RegKey)
+    ret = ccall((:RegCloseKey, "advapi32"),
                 stdcall, Clong,
-                (UInt32, Cwstring, UInt32, UInt32, Ref{UInt32}),
-                base, path, 0, accessmask, keyref)
-    if ret != 0
-        error("Could not open registry key")
-    end
-    keyref[]
+                (UInt32,),
+                key)
+    ret != 0 && error("Could not close key")
+    return nothing
 end
 
-function querykey(key::UInt32, valuename::AbstractString)
+
+function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
+    key = RegKey()
+    ret = ccall((:RegOpenKeyExW, "advapi32"),
+                stdcall, Clong,
+                (UInt32, Cwstring, UInt32, UInt32, Ptr{UInt32}),
+                base, path, 0, accessmask, key)
+    ret != 0 && error("Could not open registry key")
+    finalizer(close, key)
+    return key
+end
+
+function Base.getindex(key::RegKey, valuename::AbstractString)
     dwSize = Ref{UInt32}()
     dwDataType = Ref{UInt32}()
 
@@ -69,24 +90,17 @@ function querykey(key::UInt32, valuename::AbstractString)
                  Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),
                 key, valuename, C_NULL,
                 dwDataType, C_NULL, dwSize)
-    if ret != 0
-        error("Could not find registry value name")
-    end
+    ret == 2 && throw(KeyError(valuename))
+    ret != 0 && error("Could not find registry value name")
 
-    if VERSION < v"0.7.0-"
-        data = Array{UInt8}(dwSize[])
-    else
-        data = Array{UInt8}(undef,dwSize[])
-    end
+    data = Array{UInt8}(undef,dwSize[])
     ret = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, Clong,
                 (UInt32, Cwstring, Ptr{UInt32},
                  Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),
                 key, valuename, C_NULL,
                 C_NULL, data, dwSize)
-    if ret != 0
-        error("Could not retrieve registry data")
-    end
+    ret== 0 || error("Could not retrieve registry data")
 
     if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
@@ -107,23 +121,20 @@ function querykey(key::UInt32, valuename::AbstractString)
     end
 end
 
-function querykey(base::UInt32, path::AbstractString, valuename::AbstractString)
-    key = openkey(base,path)
-    val = querykey(key, valuename)
-    closekey(key)
-    val
+
+
+# for compatibility
+
+
+function querykey(base::RegKey, path::AbstractString, valuename::AbstractString)
+    key = openkey(base, path)
+    try
+        return key[valuename]
+    finally
+        close(key)
+    end
 end
 
-function closekey(key::UInt32)
-    ret = ccall((:RegCloseKey, "advapi32"),
-                stdcall, Clong,
-                (UInt32,),
-                key)
-    if ret != 0
-        error("Could not close key")
-    end
-    nothing
-end
 
 
 end # module
