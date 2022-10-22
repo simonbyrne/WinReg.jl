@@ -17,6 +17,13 @@ const LPBYTE = Ptr{BYTE}
 const LPDWORD = Ptr{DWORD}
 const LPCWSTR = Cwstring
 
+const MAX_KEY_LENGTH = 255
+
+const ERROR_SUCCESS = LSTATUS(0)
+const ERROR_FILE_NOT_FOUND = LSTATUS(2)
+const ERROR_NO_MORE_ITEMS = LSTATUS(259)
+
+
 
 mutable struct RegKey <: AbstractDict{String,Any}
     handle::HKEY
@@ -80,10 +87,9 @@ function Base.close(key::RegKey)
                 stdcall, LSTATUS,
                 (HKEY,),
                 key)
-    ret != 0 && error("Could not close key")
+    ret != ERROR_SUCCESS && error("Could not close key")
     return nothing
 end
-
 
 function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
@@ -92,9 +98,35 @@ function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, DWORD, REGSAM, PHKEY),
                 base, path, 0, accessmask, key)
-    ret != 0 && error("Could not open registry key")
+    ret != ERROR_SUCCESS && error("Could not open registry key")
     finalizer(close, key)
     return key
+end
+
+
+struct SubKeyIterator
+    key::RegKey
+end
+
+Base.IteratorSize(::Type{SubKeyIterator}) = Base.SizeUnknown()
+Base.IteratorEltype(::Type{SubKeyIterator}) = Base.HasEltype()
+Base.eltype(::Type{SubKeyIterator}) = String
+
+subkeys(key::RegKey) = SubKeyIterator(key)
+
+function Base.iterate(iter::SubKeyIterator, idx=0)
+    buf = Array{UInt16}(undef, MAX_KEY_LENGTH)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regenumkeyw
+    ret = ccall((:RegEnumKeyW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, DWORD, Ptr{UInt16}, DWORD),
+                iter.key, idx, buf, MAX_KEY_LENGTH)
+    if ret == ERROR_NO_MORE_ITEMS
+        return nothing
+    end
+    ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
+    n = findfirst(==(0),buf)
+    return transcode(String, buf[1:n]), idx+1
 end
 
 function Base.getindex(key::RegKey, valuename::AbstractString)
@@ -106,15 +138,15 @@ function Base.getindex(key::RegKey, valuename::AbstractString)
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, valuename, C_NULL, dwDataType, C_NULL, dwSize)
-    ret == 2 && throw(KeyError(valuename))
-    ret != 0 && error("Could not find registry value name")
+    ret == ERROR_FILE_NOT_FOUND && throw(KeyError(valuename))
+    ret != ERROR_SUCCESS && error("Could not find registry value name")
 
     data = Array{UInt8}(undef,dwSize[])
     ret = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, valuename, C_NULL, C_NULL, data, dwSize)
-    ret== 0 || error("Could not retrieve registry data")
+    ret != ERROR_SUCCESS && error("Could not retrieve registry data")
 
     if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
