@@ -24,7 +24,12 @@ const ERROR_FILE_NOT_FOUND = LSTATUS(2)
 const ERROR_NO_MORE_ITEMS = LSTATUS(259)
 
 
+"""
+    RegKey <: AbstractDict{String,Any}
 
+A Windows registry key. The name is slightly misleading, in that it is actually
+a Dict-like object which maps "values" (keys) to "data" (values).
+"""
 mutable struct RegKey <: AbstractDict{String,Any}
     handle::HKEY
 end
@@ -112,6 +117,12 @@ Base.IteratorSize(::Type{SubKeyIterator}) = Base.SizeUnknown()
 Base.IteratorEltype(::Type{SubKeyIterator}) = Base.HasEltype()
 Base.eltype(::Type{SubKeyIterator}) = String
 
+
+"""
+    subkeys(key::RegKey)
+
+An iterator over the subkeys of `key`.
+"""
 subkeys(key::RegKey) = SubKeyIterator(key)
 
 function Base.iterate(iter::SubKeyIterator, idx=0)
@@ -126,7 +137,8 @@ function Base.iterate(iter::SubKeyIterator, idx=0)
     end
     ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
     n = findfirst(==(0),buf)
-    return transcode(String, buf[1:n]), idx+1
+    str = transcode(String, buf[1:n-1])
+    return str, idx+1
 end
 
 function Base.getindex(key::RegKey, valuename::AbstractString)
