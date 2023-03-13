@@ -165,8 +165,19 @@ function Base.iterate(key::RegKey, idx=0)
     return (name => data), idx+1
 end
 
+function Base.haskey(key::RegKey, valuename::AbstractString)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw
+    status = ccall((:RegQueryValueExW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, valuename, C_NULL, C_NULL, C_NULL, C_NULL)
+    status == ERROR_FILE_NOT_FOUND && return false
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    return true
+end
 
-function Base.getindex(key::RegKey, valuename::AbstractString)
+
+function Base.get(key::RegKey, valuename::AbstractString, default)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw
     dwSize = Ref{DWORD}()
     dwDataType = Ref{DWORD}()
@@ -175,7 +186,7 @@ function Base.getindex(key::RegKey, valuename::AbstractString)
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, valuename, C_NULL, dwDataType, C_NULL, dwSize)
-    status == ERROR_FILE_NOT_FOUND && throw(KeyError(valuename))
+    status == ERROR_FILE_NOT_FOUND && return default
     status != ERROR_SUCCESS && throw(WinAPIError(status))
 
     data_buf = Array{UInt8}(undef,dwSize[])
