@@ -17,6 +17,7 @@ const MAX_VALUE_LENGTH = 16383
 
 const ERROR_SUCCESS = LSTATUS(0)
 const ERROR_FILE_NOT_FOUND = LSTATUS(2)
+const ERROR_MORE_DATA = LSTATUS(234)
 const ERROR_NO_MORE_ITEMS = LSTATUS(259)
 
 const REG_NONE                    = 0 # no value type
