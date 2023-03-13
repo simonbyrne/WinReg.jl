@@ -1,8 +1,6 @@
 module WinReg
 
-
 # https://learn.microsoft.com/en-us/windows/win32/api/winreg/
-
 
 export querykey
 
@@ -26,6 +24,12 @@ Base.unsafe_convert(::Type{HKEY}, key::RegKey) = key.handle
 Base.unsafe_convert(::Type{PHKEY}, key::RegKey) = convert(Ptr{HKEY}, pointer_from_objref(key))
 
 
+struct WinAPIError <: ErrorException
+    code::LSTATUS
+end
+
+
+
 # pre-defined keys
 const HKEY_CLASSES_ROOT     = RegKey(0x8000_0000)
 const HKEY_CURRENT_USER     = RegKey(0x8000_0001)
@@ -39,24 +43,29 @@ const HKEY_DYN_DATA         = RegKey(0x8000_0006)
 function Base.close(key::RegKey)
     if key.handle != zero(HKEY)
         # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regclosekey
-        ret = ccall((:RegCloseKey, "advapi32"),
+        status = ccall((:RegCloseKey, "advapi32"),
                     stdcall, LSTATUS,
                     (HKEY,),
                     key)
-        ret != ERROR_SUCCESS && error("Could not close key $ret")
+        status != ERROR_SUCCESS && throw(WinAPIError(status))
         key.handle = zero(HKEY)
     end
     return nothing
 end
 
+"""
+    WinReg.openkey(basekey::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
+
+Open a registry key at `path` relative to `basekey`. `accessmask` is a bitfield.
+"""
 function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
     key = RegKey()
-    ret = ccall((:RegOpenKeyExW, "advapi32"),
+    status = ccall((:RegOpenKeyExW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, DWORD, REGSAM, PHKEY),
                 base, path, 0, accessmask, key)
-    ret != ERROR_SUCCESS && error("Could not open registry key")
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
     finalizer(close, key)
     return key
 end
@@ -75,26 +84,33 @@ Base.eltype(::Type{SubKeyIterator}) = String
 """
     subkeys(key::RegKey)
 
-An iterator over the subkeys of `key`.
+An iterator over the names of the subkeys of `key`.
 """
 subkeys(key::RegKey) = SubKeyIterator(key)
 
 function Base.iterate(iter::SubKeyIterator, idx=0)
     buf = Array{UInt16}(undef, MAX_KEY_LENGTH)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regenumkeyw
-    ret = ccall((:RegEnumKeyW, "advapi32"),
+    status = ccall((:RegEnumKeyW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, DWORD),
                 iter.key, idx, buf, MAX_KEY_LENGTH)
-    if ret == ERROR_NO_MORE_ITEMS
+    if status == ERROR_NO_MORE_ITEMS
         return nothing
     end
-    ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
-    n = findfirst(==(0),buf)
-    str = transcode(String, buf[1:n-1])
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    n = findfirst(==(0), buf)
+    resize!(buf, n-1)
+    str = transcode(String, buf)
     return str, idx+1
 end
 
+"""
+    WinReg.extract_data(dwDataType::DWORD, data_buf::Vector{UInt8})
+
+Convert the data in `data_buf` to the appropriate type, based on the data type
+`dwDataType`.
+"""
 function extract_data(dwDataType::DWORD, data::Vector{UInt8})
     if dwDataType == REG_SZ || dwDataType == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
@@ -117,30 +133,34 @@ end
 
 
 function Base.iterate(key::RegKey, idx=0)
+    if iszero(key.handle)
+        return nothing
+    end
     name_buf = Array{UInt16}(undef, MAX_VALUE_LENGTH + 1)
     nchars = Ref{DWORD}(length(name_buf))
     dwSize = Ref{DWORD}(0)
     dwDataType = Ref{DWORD}(0)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regenumvaluew
-    ret = ccall((:RegEnumValueW, "advapi32"),
+    status = ccall((:RegEnumValueW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, idx, name_buf, nchars, C_NULL, C_NULL, C_NULL, dwSize)
-    if ret == ERROR_NO_MORE_ITEMS
+    if status == ERROR_NO_MORE_ITEMS
         return nothing
     end
-    ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
 
     nchars[] = length(name_buf) # reset
     data_buf = Array{UInt8}(undef,dwSize[])
-    ret = ccall((:RegEnumValueW, "advapi32"),
+    status = ccall((:RegEnumValueW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, idx, name_buf, nchars, C_NULL, dwDataType, data_buf, dwSize)
-    ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
     
     n = nchars[]
-    name = transcode(String, name_buf[1:n])
+    resize!(name_buf, n)
+    name = transcode(String, name_buf)
     data = extract_data(dwDataType[], data_buf)
     return (name => data), idx+1
 end
@@ -151,19 +171,19 @@ function Base.getindex(key::RegKey, valuename::AbstractString)
     dwSize = Ref{DWORD}()
     dwDataType = Ref{DWORD}()
 
-    ret = ccall((:RegQueryValueExW, "advapi32"),
+    status = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, valuename, C_NULL, dwDataType, C_NULL, dwSize)
-    ret == ERROR_FILE_NOT_FOUND && throw(KeyError(valuename))
-    ret != ERROR_SUCCESS && error("Could not find registry value name")
+    status == ERROR_FILE_NOT_FOUND && throw(KeyError(valuename))
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
 
     data_buf = Array{UInt8}(undef,dwSize[])
-    ret = ccall((:RegQueryValueExW, "advapi32"),
+    status = ccall((:RegQueryValueExW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
                 key, valuename, C_NULL, C_NULL, data_buf, dwSize)
-    ret != ERROR_SUCCESS && error("Could not retrieve registry data")
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
 
     return extract_data(dwDataType[], data_buf)
 end
@@ -171,8 +191,6 @@ end
 
 
 # for compatibility
-
-
 function querykey(base::RegKey, path::AbstractString, valuename::AbstractString)
     key = openkey(base, path)
     try
