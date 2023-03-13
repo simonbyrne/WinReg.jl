@@ -125,7 +125,7 @@ function Base.iterate(key::RegKey, idx=0)
     ret = ccall((:RegEnumValueW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
-                key, idx, name_buf, nchars, C_NULL, dwDataType, C_NULL, dwSize)
+                key, idx, name_buf, nchars, C_NULL, C_NULL, C_NULL, dwSize)
     if ret == ERROR_NO_MORE_ITEMS
         return nothing
     end
@@ -135,7 +135,7 @@ function Base.iterate(key::RegKey, idx=0)
     ret = ccall((:RegEnumValueW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
-                key, idx, name_buf, nchars, C_NULL, C_NULL, data_buf, dwSize)
+                key, idx, name_buf, nchars, C_NULL, dwDataType, data_buf, dwSize)
     ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
     
     n = nchars[]
