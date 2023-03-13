@@ -9,7 +9,8 @@ const REGSAM = DWORD
 const LPBYTE = Ptr{BYTE}
 const LPDWORD = Ptr{DWORD}
 const LPCWSTR = Cwstring
-
+const FILETIME = UInt64
+const PFILETIME = Ptr{FILETIME}
 
 # constants
 const MAX_KEY_LENGTH = 255

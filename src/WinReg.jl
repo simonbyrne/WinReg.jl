@@ -76,9 +76,24 @@ struct SubKeyIterator
     key::RegKey
 end
 
-Base.IteratorSize(::Type{SubKeyIterator}) = Base.SizeUnknown()
+Base.IteratorSize(::Type{SubKeyIterator}) = Base.HasLength()
 Base.IteratorEltype(::Type{SubKeyIterator}) = Base.HasEltype()
 Base.eltype(::Type{SubKeyIterator}) = String
+
+function Base.length(iter::SubKeyIterator)
+    key = iter.key
+    if iszero(key.handle)
+        return 0
+    end
+    nsubkeys = Ref{DWORD}(0)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryinfokeyw
+    status = ccall((:RegQueryInfoKeyW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME),
+                key, C_NULL, C_NULL, C_NULL, nsubkeys, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    return Int(nsubkeys[])
+end
 
 
 """
@@ -89,12 +104,16 @@ An iterator over the names of the subkeys of `key`.
 subkeys(key::RegKey) = SubKeyIterator(key)
 
 function Base.iterate(iter::SubKeyIterator, idx=0)
+    key = iter.key
+    if iszero(key.handle)
+        return nothing
+    end
     buf = Array{UInt16}(undef, MAX_KEY_LENGTH)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regenumkeyw
     status = ccall((:RegEnumKeyW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, DWORD),
-                iter.key, idx, buf, MAX_KEY_LENGTH)
+                key, idx, buf, MAX_KEY_LENGTH)
     if status == ERROR_NO_MORE_ITEMS
         return nothing
     end
@@ -131,7 +150,19 @@ function extract_data(dwDataType::DWORD, data::Vector{UInt8})
     end
 end
 
-
+function Base.length(::WinReg.RegKey)
+    if iszero(key.handle)
+        return 0
+    end
+    nvalues = Ref{DWORD}(0)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryinfokeyw
+    status = ccall((:RegQueryInfoKeyW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME),
+                key, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, nvalues, C_NULL, C_NULL, C_NULL, C_NULL)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    return Int(nvalues[])
+end
 function Base.iterate(key::RegKey, idx=0)
     if iszero(key.handle)
         return nothing
