@@ -3,8 +3,13 @@ using Test
 
 @show collect(WinReg.subkeys(WinReg.openkey(WinReg.HKEY_CURRENT_USER, "Software")))
 
-key = WinReg.openkey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Control\\Session Manager")
-@test "Environment" in WinReg.subkeys(key)
+
+regkey = WinReg.openkey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Control\\Session Manager")
+
+@test "Environment" in WinReg.subkeys(regkey)
+
+@show regkey
+@show WinReg.RegKey()
 
 names = collect(WinReg.subkeys(key))
 @test "Environment" in names
