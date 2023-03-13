@@ -11,10 +11,10 @@ regkey = WinReg.openkey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Co
 @show regkey
 @show WinReg.RegKey()
 
-names = collect(WinReg.subkeys(key))
+names = collect(WinReg.subkeys(regkey))
 @test "Environment" in names
 
-subkey = WinReg.openkey(key, "Environment")
+subkey = WinReg.openkey(regkey, "Environment")
 @test subkey["OS"] == "Windows_NT"
 
 @test querykey(WinReg.HKEY_LOCAL_MACHINE,"System\\CurrentControlSet\\Control\\Session Manager\\Environment","OS") == "Windows_NT"
