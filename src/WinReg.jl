@@ -135,13 +135,13 @@ function Base.iterate(key::RegKey, idx=0)
     ret = ccall((:RegEnumValueW, "advapi32"),
                 stdcall, LSTATUS,
                 (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
-                key, idx, buf, nchars, C_NULL, C_NULL, data_buf, dwSize)
+                key, idx, name_buf, nchars, C_NULL, C_NULL, data_buf, dwSize)
     ret != ERROR_SUCCESS && error("Could not access registry key, $ret")
     
     n = nchars[]
-    str = transcode(String, buf[1:n-1])
+    name = transcode(String, name_buf[1:n-1])
     data = extract_data(dwDataType[], data_buf)
-    return (str => data), idx+1
+    return (name => data), idx+1
 end
 
 
