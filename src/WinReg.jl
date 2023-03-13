@@ -150,7 +150,7 @@ function extract_data(dwDataType::DWORD, data::Vector{UInt8})
     end
 end
 
-function Base.length(::WinReg.RegKey)
+function Base.length(key::WinReg.RegKey)
     if iszero(key.handle)
         return 0
     end

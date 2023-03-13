@@ -18,7 +18,7 @@ subkey = WinReg.openkey(regkey, "Environment")
 
 @test !haskey(subkey, "XOS")
 @test !("XOS" in keys(subkey))
-@test isnothing(get(subkey, "XOS", nothing))
+@test get(subkey, "XOS", nothing) === nothing
 
 d = Dict(subkey)
 @test d isa Dict
