@@ -24,7 +24,7 @@ Base.unsafe_convert(::Type{HKEY}, key::RegKey) = key.handle
 Base.unsafe_convert(::Type{PHKEY}, key::RegKey) = convert(Ptr{HKEY}, pointer_from_objref(key))
 
 
-struct WinAPIError <: ErrorException
+struct WinAPIError <: Exception
     code::LSTATUS
 end
 
