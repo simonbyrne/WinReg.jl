@@ -20,6 +20,9 @@ subkey = WinReg.openkey(regkey, "Environment")
 @test !("XOS" in keys(subkey))
 @test isnothing(get(subkey, "XOS", nothing))
 
+d = Dict(subkey)
+@test d isa Dict
+@test d["OS"] == "Windows_NT"
 
 @test sprint(show, WinReg.RegKey()) == "WinReg.RegKey()"
 
