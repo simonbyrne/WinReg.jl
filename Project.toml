@@ -1,7 +1,7 @@
 name = "WinReg"
 uuid = "1b915085-20d7-51cf-bf83-8f477d6f5128"
 authors = ["Simon Byrne <simonbyrne@gmail.com>"]
-version = "0.3.1"
+version = "1"
 
 [compat]
 julia = "1"
@@ -11,5 +11,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]
-
-

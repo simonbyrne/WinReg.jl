@@ -1,94 +1,138 @@
-__precompile__(true)
 module WinReg
 
-export querykey
+# https://learn.microsoft.com/en-us/windows/win32/api/winreg/
 
-const HKEY_CLASSES_ROOT     = 0x80000000
-const HKEY_CURRENT_USER     = 0x80000001
-const HKEY_LOCAL_MACHINE    = 0x80000002
-const HKEY_USERS            = 0x80000003
-const HKEY_PERFORMANCE_DATA = 0x80000004
-const HKEY_CURRENT_CONFIG   = 0x80000005
-const HKEY_DYN_DATA         = 0x80000006
+export openkey, subkeys, querykey
 
 
-const REG_NONE                    = 0 # no value type
-const REG_SZ                      = 1 # null-terminated ASCII string
-const REG_EXPAND_SZ               = 2 # Unicode nul terminated string
-const REG_BINARY                  = 3 # Free form binary
-const REG_DWORD                   = 4 # 32-bit number
-const REG_DWORD_LITTLE_ENDIAN     = 4 # 32-bit number (same as REG_DWORD)
-const REG_DWORD_BIG_ENDIAN        = 5 # 32-bit number
-const REG_LINK                    = 6 # Symbolic Link (unicode)
-const REG_MULTI_SZ                = 7 # Multiple Unicode strings
-const REG_RESOURCE_LIST           = 8 # Resource list in the resource map
-const REG_FULL_RESOURCE_DESCRIPTOR = 9 # Resource list in the hardware description
-const REG_RESOURCE_REQUIREMENTS_LIST = 10
-const REG_QWORD                   = 11 # 64-bit number
-const REG_QWORD_LITTLE_ENDIAN     = 11 # 64-bit number (same as REG_QWORD)
+include("constants.jl")
 
 
-const KEY_ALL_ACCESS          = 0xF003F # Combines the STANDARD_RIGHTS_REQUIRED, KEY_QUERY_VALUE, KEY_SET_VALUE, KEY_CREATE_SUB_KEY, KEY_ENUMERATE_SUB_KEYS, KEY_NOTIFY, and KEY_CREATE_LINK access rights.
-const KEY_CREATE_LINK         = 0x00020  # Reserved for system use.
-const KEY_CREATE_SUB_KEY      = 0x00004  # Required to create a subkey of a registry key.
-const KEY_ENUMERATE_SUB_KEYS  = 0x00008  # Required to enumerate the subkeys of a registry key.
-const KEY_EXECUTE             = 0x20019  # Equivalent to KEY_READ.
-const KEY_NOTIFY              = 0x00010  # Required to request change notifications for a registry key or for subkeys of a registry key.
-const KEY_QUERY_VALUE         = 0x00001  # Required to query the values of a registry key.
-const KEY_READ                = 0x20019  # Combines the STANDARD_RIGHTS_READ, KEY_QUERY_VALUE, KEY_ENUMERATE_SUB_KEYS, and KEY_NOTIFY values.
-const KEY_SET_VALUE           = 0x00002  # Required to create, delete, or set a registry value.
+"""
+    RegKey <: AbstractDict{String,Any}
 
-const KEY_WOW64_32KEY         = 0x00200  # Indicates that an application on 64-bit Windows should operate on the 32-bit registry view. This flag is ignored by 32-bit Windows. For more information, see Accessing an Alternate Registry View.
-# This flag must be combined using the OR operator with the other flags in this table that either query or access registry values.
-# Windows 2000:  This flag is not supported.
-const KEY_WOW64_64KEY         = 0x00100  # Indicates that an application on 64-bit Windows should operate on the 64-bit registry view. This flag is ignored by 32-bit Windows. For more information, see Accessing an Alternate Registry View.
-# This flag must be combined using the OR operator with the other flags in this table that either query or access registry values.
-# Windows 2000:  This flag is not supported.
+A Windows registry key. The name is slightly misleading, in that it is actually
+a Dict-like object which maps "values" (keys) to "data" (values).
+"""
+mutable struct RegKey <: AbstractDict{String,Any}
+    handle::HKEY
+end
+RegKey() = RegKey(zero(HKEY))
 
-const KEY_WRITE               = 0x20006  # Combines the STANDARD_RIGHTS_WRITE, KEY_SET_VALUE, and KEY_CREATE_SUB_KEY access rights.
+Base.cconvert(::Type{HKEY}, key::RegKey) = key
+Base.unsafe_convert(::Type{HKEY}, key::RegKey) = key.handle
+Base.unsafe_convert(::Type{PHKEY}, key::RegKey) = convert(Ptr{HKEY}, pointer_from_objref(key))
 
-function openkey(base::UInt32, path::AbstractString, accessmask::UInt32=KEY_READ)
-    keyref = Ref{UInt32}()
-    ret = ccall((:RegOpenKeyExW, "advapi32"),
-                stdcall, Clong,
-                (UInt32, Cwstring, UInt32, UInt32, Ref{UInt32}),
-                base, path, 0, accessmask, keyref)
-    if ret != 0
-        error("Could not open registry key")
-    end
-    keyref[]
+
+struct WinAPIError <: Exception
+    code::LSTATUS
 end
 
-function querykey(key::UInt32, valuename::AbstractString)
-    dwSize = Ref{UInt32}()
-    dwDataType = Ref{UInt32}()
 
-    ret = ccall((:RegQueryValueExW, "advapi32"),
-                stdcall, Clong,
-                (UInt32, Cwstring, Ptr{UInt32},
-                 Ref{UInt32}, Ptr{UInt8}, Ref{UInt32}),
-                key, valuename, C_NULL,
-                dwDataType, C_NULL, dwSize)
-    if ret != 0
-        error("Could not find registry value name")
-    end
 
-    if VERSION < v"0.7.0-"
-        data = Array{UInt8}(dwSize[])
-    else
-        data = Array{UInt8}(undef,dwSize[])
-    end
-    ret = ccall((:RegQueryValueExW, "advapi32"),
-                stdcall, Clong,
-                (UInt32, Cwstring, Ptr{UInt32},
-                 Ptr{UInt32}, Ptr{UInt8}, Ref{UInt32}),
-                key, valuename, C_NULL,
-                C_NULL, data, dwSize)
-    if ret != 0
-        error("Could not retrieve registry data")
-    end
+# pre-defined keys
+const HKEY_CLASSES_ROOT     = RegKey(0x8000_0000)
+const HKEY_CURRENT_USER     = RegKey(0x8000_0001)
+const HKEY_LOCAL_MACHINE    = RegKey(0x8000_0002)
+const HKEY_USERS            = RegKey(0x8000_0003)
+const HKEY_PERFORMANCE_DATA = RegKey(0x8000_0004)
+const HKEY_CURRENT_CONFIG   = RegKey(0x8000_0005)
+const HKEY_DYN_DATA         = RegKey(0x8000_0006)
 
-    if dwDataType[] == REG_SZ || dwDataType[] == REG_EXPAND_SZ
+
+function Base.close(key::RegKey)
+    if key.handle != zero(HKEY)
+        # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regclosekey
+        status = ccall((:RegCloseKey, "advapi32"),
+                    stdcall, LSTATUS,
+                    (HKEY,),
+                    key)
+        status != ERROR_SUCCESS && throw(WinAPIError(status))
+        key.handle = zero(HKEY)
+    end
+    return nothing
+end
+
+"""
+    openkey(basekey::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
+
+Open a registry key at `path` relative to `basekey`. `accessmask` is a bitfield.
+`\\` is used as a path separator.
+"""
+function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
+    key = RegKey()
+    status = ccall((:RegOpenKeyExW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, DWORD, REGSAM, PHKEY),
+                base, path, 0, accessmask, key)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    finalizer(close, key)
+    return key
+end
+
+
+
+struct SubKeyIterator
+    key::RegKey
+end
+
+Base.IteratorSize(::Type{SubKeyIterator}) = Base.HasLength()
+Base.IteratorEltype(::Type{SubKeyIterator}) = Base.HasEltype()
+Base.eltype(::Type{SubKeyIterator}) = String
+
+function Base.length(iter::SubKeyIterator)
+    key = iter.key
+    if iszero(key.handle)
+        return 0
+    end
+    nsubkeys = Ref{DWORD}(0)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryinfokeyw
+    status = ccall((:RegQueryInfoKeyW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME),
+                key, C_NULL, C_NULL, C_NULL, nsubkeys, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    return Int(nsubkeys[])
+end
+
+
+"""
+    subkeys(key::RegKey)
+
+An iterator over the names of the subkeys of `key`.
+"""
+subkeys(key::RegKey) = SubKeyIterator(key)
+
+function Base.iterate(iter::SubKeyIterator, idx=0)
+    key = iter.key
+    if iszero(key.handle)
+        return nothing
+    end
+    buf = Array{UInt16}(undef, MAX_KEY_LENGTH)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regenumkeyw
+    status = ccall((:RegEnumKeyW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, DWORD, Ptr{UInt16}, DWORD),
+                key, idx, buf, MAX_KEY_LENGTH)
+    if status == ERROR_NO_MORE_ITEMS
+        return nothing
+    end
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    n = findfirst(==(0), buf)
+    resize!(buf, n-1)
+    str = transcode(String, buf)
+    return str, idx+1
+end
+
+"""
+    WinReg.extract_data(dwDataType::DWORD, data_buf::Vector{UInt8})
+
+Convert the data in `data_buf` to the appropriate type, based on the data type
+`dwDataType`.
+"""
+function extract_data(dwDataType::DWORD, data::Vector{UInt8})
+    if dwDataType == REG_SZ || dwDataType == REG_EXPAND_SZ
         data_wstr = reinterpret(Cwchar_t,data)
         # string may or may not be null-terminated
         # need to copy, until https://github.com/JuliaLang/julia/pull/27810 is fixed
@@ -98,32 +142,107 @@ function querykey(key::UInt32, valuename::AbstractString)
             data_wstr2 = data_wstr[1:end]
         end        
         return transcode(String, data_wstr2)
-    elseif dwDataType[] == REG_DWORD
-        return reinterpret(Int32,data)[]
-    elseif dwDataType[] == REG_QWORD
-        return reinterpret(Int64,data)[]
+    elseif dwDataType == REG_DWORD
+        return reinterpret(DWORD, data)[]
+    elseif dwDataType == REG_QWORD
+        return reinterpret(QWORD, data)[]
     else
         return data
     end
 end
 
-function querykey(base::UInt32, path::AbstractString, valuename::AbstractString)
-    key = openkey(base,path)
-    val = querykey(key, valuename)
-    closekey(key)
-    val
+function Base.length(key::WinReg.RegKey)
+    if iszero(key.handle)
+        return 0
+    end
+    nvalues = Ref{DWORD}(0)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryinfokeyw
+    status = ccall((:RegQueryInfoKeyW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME),
+                key, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, nvalues, C_NULL, C_NULL, C_NULL, C_NULL)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    return Int(nvalues[])
+end
+function Base.iterate(key::RegKey, idx=0)
+    if iszero(key.handle)
+        return nothing
+    end
+    name_buf = Array{UInt16}(undef, MAX_VALUE_LENGTH + 1)
+    nchars = Ref{DWORD}(length(name_buf))
+    dwSize = Ref{DWORD}(0)
+    dwDataType = Ref{DWORD}(0)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regenumvaluew
+    status = ccall((:RegEnumValueW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, idx, name_buf, nchars, C_NULL, C_NULL, C_NULL, dwSize)
+    if status == ERROR_NO_MORE_ITEMS
+        return nothing
+    end
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+
+    nchars[] = length(name_buf) # reset
+    data_buf = Array{UInt8}(undef,dwSize[])
+    status = ccall((:RegEnumValueW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, DWORD, Ptr{UInt16}, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, idx, name_buf, nchars, C_NULL, dwDataType, data_buf, dwSize)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    
+    n = nchars[]
+    resize!(name_buf, n)
+    name = transcode(String, name_buf)
+    data = extract_data(dwDataType[], data_buf)
+    return (name => data), idx+1
 end
 
-function closekey(key::UInt32)
-    ret = ccall((:RegCloseKey, "advapi32"),
-                stdcall, Clong,
-                (UInt32,),
-                key)
-    if ret != 0
-        error("Could not close key")
-    end
-    nothing
+function Base.haskey(key::RegKey, valuename::AbstractString)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw
+    status = ccall((:RegQueryValueExW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, valuename, C_NULL, C_NULL, C_NULL, C_NULL)
+    status == ERROR_FILE_NOT_FOUND && return false
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+    return true
 end
+
+
+function Base.get(key::RegKey, valuename::AbstractString, default)
+    # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw
+    dwSize = Ref{DWORD}()
+    dwDataType = Ref{DWORD}()
+
+    status = ccall((:RegQueryValueExW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, valuename, C_NULL, dwDataType, C_NULL, dwSize)
+    status == ERROR_FILE_NOT_FOUND && return default
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+
+    data_buf = Array{UInt8}(undef,dwSize[])
+    status = ccall((:RegQueryValueExW, "advapi32"),
+                stdcall, LSTATUS,
+                (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD),
+                key, valuename, C_NULL, C_NULL, data_buf, dwSize)
+    status != ERROR_SUCCESS && throw(WinAPIError(status))
+
+    return extract_data(dwDataType[], data_buf)
+end
+
+
+
+# for compatibility
+function querykey(base::RegKey, path::AbstractString, valuename::AbstractString)
+    key = openkey(base, path)
+    try
+        return key[valuename]
+    finally
+        close(key)
+    end
+end
+
 
 
 end # module
