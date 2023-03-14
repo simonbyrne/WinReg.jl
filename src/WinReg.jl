@@ -2,7 +2,7 @@ module WinReg
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winreg/
 
-export querykey
+export openkey, subkeys, querykey
 
 
 include("constants.jl")
@@ -54,9 +54,10 @@ function Base.close(key::RegKey)
 end
 
 """
-    WinReg.openkey(basekey::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
+    openkey(basekey::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
 
 Open a registry key at `path` relative to `basekey`. `accessmask` is a bitfield.
+`\\` is used as a path separator.
 """
 function openkey(base::RegKey, path::AbstractString, accessmask::UInt32=KEY_READ)
     # https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
