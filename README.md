@@ -6,7 +6,7 @@ Julia interface to the Windows Registry.
 
 ## Usage
 
-The nomenclature of the Windows Registry is a bit confusing: a _registry key_ is an element is a container object in a tree. Each registry key can itself have subkeys (so the keys form a hierarchy), but can also have _values_ which are really key-value pairs (usually referred to as _value names_ and _value data_).
+The nomenclature of the Windows Registry is a bit confusing: a _registry key_ is a container object in a tree. Each registry key can itself have subkeys (so the keys form a hierarchy), but can also have _values_ which are really key-value pairs (usually referred to as _value names_ and _value data_).
 
 In WinReg.jl, a registry key is represented by a `RegKey` object. There are several pre-defined root `RegKey`s:
  * `WinReg.HKEY_CLASSES_ROOT`
